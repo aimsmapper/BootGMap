@@ -2,6 +2,9 @@
 Thumbs.db
 ehthumbs.db
 
+# Ignore Jekyll directory
+_site/
+
 # Folder config file
 Desktop.ini
 
