@@ -245,6 +245,13 @@ function drawMap(pos)
         }
     };
     map = new google.maps.Map(document.getElementById("map"), myOptions);
+    
+    // Add OSM layer dynamically
+    var mapTypeIds = [];
+            for(var type in google.maps.MapTypeId) {
+                mapTypeIds.push(google.maps.MapTypeId[type]);
+            }
+        mapTypeIds.push("OSM");
 
     // bind the map to the directions
     directionsDisplay.setMap(map);
@@ -295,28 +302,17 @@ function drawMap(pos)
     //draw the fusion table layer on the google map
     layer.setMap(map);
 
-    //var wxoverlay = new WXTiles();
-    //wxoverlay.addToMap( map );
-    //wxoverlay.addColorBar( 'big', 'horiz', 'BottomLeft' );
-    //document.getElementById( 'tSelect' ).appendChild( wxoverlay.getTSelect() );
-    //document.getElementById( 'wxSelect' ).appendChild( wxoverlay.getVSelect() );
-
     var bikeLayer = new google.maps.BicyclingLayer();
     bikeLayer.setMap(map);
 
-    // Create the DIV to hold the control and
-    // call the CenterControl() constructor passing
-    // in this DIV.
-    /*var centerControlDiv = document.createElement( 'div' );
-    var centerControl = new CenterControl( centerControlDiv, map );
-
-    centerControlDiv.index = 1;
-    map.controls[google.maps.ControlPosition.TOP_RIGHT].push( centerControlDiv );
-
-    var homeControlDiv = document.getElementById( 'ddControl' );
-    homeControlDiv.style.display = "block";
-    map.controls[google.maps.ControlPosition.TOP_RIGHT].push( homeControlDiv );
-    */
+    map.mapTypes.set("OSM", new google.maps.ImageMapType({
+        getTileUrl: function(coord, zoom) {
+            return "http://tile.openstreetmap.org/" + zoom + "/" + coord.x + "/" + coord.y + ".png";
+        },
+        tileSize: new google.maps.Size(256, 256),
+        name: "OpenStreetMap",
+        maxZoom: 18
+    }));
 
     //return;
     //add a click event listener to the layer
@@ -381,6 +377,7 @@ var directionsDisplay, address;
 var directionsService = new google.maps.DirectionsService();
 var geocoder = new google.maps.Geocoder();
 
+// Default Location
 var leawood = new google.maps.LatLng(38.92, -94.62);
 
 var featureOpts = [
