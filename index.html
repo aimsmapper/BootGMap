@@ -1,325 +1,977 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#000000">
-    <meta name="description" content="">
-    <meta name="author" content="">
-    <title>Bike Leawood!</title>
+/*
+* Google Maps documentation: http://code.google.com/apis/maps/documentation/javascript/basics.html
+* Geolocation documentation: http://dev.w3.org/geo/api/spec-source.html
+*/
+  var travelMode = "BICYCLING";
+  var elevationService = null;
+  var directionsService = null;
+  var mousemarker = null, GeoMarker;
+  var markers = [];
+  var polyline = null;
+  var chart, lat, lng;
+  var SAMPLES = 100;
+  var distance = 0;
+  var distances = [];
+  var markersArray = [];
+  var iActiveMarker = -1;
+  var defaultLatLng = new google.maps.LatLng(38.92, -94.62);// default Lat\Lng = Leawood
+
+  var station_list;
+
+  var map, featureList, GeoMarker;
+  var markersArray = [];
+  var iActiveMarker = -1;
+
+google.load('visualization', '1', { 'packages': ['corechart', 'table', 'geomap'] })
+
+$(window).resize(function ()
+{
+    sizeLayerControl();
+});
+
+$(".dropdown-menu li a").click(function ()
+{
+    var selText = $(this).text();
+
+    $(this).parents('.btn-group').find('.dropdown-toggle').html(selText + ' <span class="caret"></span>');
+    if (selText.substr(0, 1) == "W") {
+        travelMode = "walking";
+    }
+    else {
+        travelMode = "bicycling";
+    }
+});
+
+$(document).on("click", ".feature-row", function (e)
+{
+    $(document).off("mouseout", ".feature-row", clearHighlight);
+    sidebarClick(parseInt($(this).attr("id"), 10));
+});
+
+$(document).on("click", ".feature-row", function (e)
+{
+    $(document).off("mouseout", ".feature-row", clearHighlight);
+    sidebarClick(parseInt($(this).attr("id"), 10));
+});
+
+$(document).ready(function ($)
+{
+	// Create an ElevationService.
+	elevator = new google.maps.ElevationService();
+});
+
+$('#weatherModal').on('shown.bs.modal', function (e)
+{
+    getWeather(lat,lng);
+})
+
+$(function ()
+{
+    $('#showWeatherLyr').change(function ()
+    {
+        getWeather(lat,lng);
+    })
+})
+
+$(document).ready(function ($)
+{
+	GeoMarker = new GeolocationMarker();
+
+	google.maps.event.addListenerOnce(GeoMarker, 'position_changed', function() {
+	  map.setCenter(this.getPosition());
+	  map.fitBounds(this.getBounds());
+	});
+
+	google.maps.event.addListener(GeoMarker, 'geolocation_error', function(e) {
+	  alert('There was an error obtaining your position. Message: ' + e.message);
+	});
+});
+
+function tooltip(temp_distance, temp_elevation) {
+	return 'Distance: ' + temp_distance + ' mi.\nElevation: ' + temp_elevation + ' ft.';
+}
+
+function barMouseOver(e) {
+	chart.setSelection([e]);
+}
+
+function barMouseOut(e) {
+	chart.setSelection([{'row': null, 'column': null}]);
+}
+
+$(document).ready(function ($)
+{
+  $(function () {
+          if( /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
+            $(".youtube").YouTubePlaylistModal({autoplay:0, width:300, height:210});
+          }
+          else {
+            $(".youtube").YouTubePlaylistModal({autoplay:0, width:640, height:480});
+          }
+  });
+});
+
+$(document).on("mouseover", ".feature-row", function (e)
+{
+    highlight.clearLayers().addLayer(L.circleMarker([$(this).attr("lat"), $(this).attr("lng")], highlightStyle));
+});
+
+$(document).on("mouseout", ".feature-row", clearHighlight);
+
+$("#about-btn").click(function ()
+{
+    $("#aboutModal").modal("show");
+    $(".navbar-collapse.in").collapse("hide");
+    return false;
+});
+
+$("#emergency-btn").click(function ()
+{
+    $("#helpModal").modal("show");
+    $(".navbar-collapse.in").collapse("hide");
+    return false;
+});
+
+$("#legend-btn").click(function ()
+{
+    $("#legendModal").modal("show");
+    $(".navbar-collapse.in").collapse("hide");
+    return false;
+});
+
+$("#weather-btn").click(function ()
+{
+    $("#weatherModal").modal("show");
+    $(".navbar-collapse.in").collapse("hide");
+    return false;
+});
+
+$("#directions-btn").click(function ()
+{
+    $("#directionsModal").modal("show");
+    $(".navbar-collapse.in").collapse("hide");
+    return false;
+});
+
+$("#login-btn").click(function ()
+{
+    $("#loginModal").modal("show");
+    $(".navbar-collapse.in").collapse("hide");
+    return false;
+});
+
+$("#list-btn").click(function ()
+{
+    $('#sidebar').toggle();
+    setDIVHeight();
+    return false;
+});
+
+$("#nav-btn").click(function ()
+{
+    $(".navbar-collapse").collapse("toggle");
+    return false;
+});
+
+$("#sidebar-toggle-btn").click(function ()
+{
+    $("#sidebar").toggle();
+    setDIVHeight();
+    return false;
+});
+
+$("#sidebar-hide-btn").click(function ()
+{
+    $('#sidebar').hide();
+    setDIVHeight();
+});
+
+function sizeLayerControl()
+{
+    $(".leaflet-control-layers").css("max-height", $("#map").height() - 50);
+}
+
+function clearHighlight()
+{
+    highlight.clearLayers();
+}
+
+function sidebarClick(id)
+{
+    var layer = markerClusters.getLayer(id);
+    map.setView([layer.getLatLng().lat, layer.getLatLng().lng], 17);
+    layer.fire("click");
+    /* Hide sidebar and go to the map on small screens */
+    if (document.body.clientWidth <= 767) {
+        $("#sidebar").hide();
+        setDIVHeight();
+    }
+}
+
+function setDIVHeight()
+{
+    var theDiv = $('#map-page');
+    var screen = $(window).height(); //$.mobile.getScreenHeight(),
+        header = $("header").hasClass("ui-header") ? $("ui-header").outerHeight() - 1 : $("ui-header").outerHeight(),
+        footer = $("footer").hasClass("ui-footer") ? $("ui-footer").outerHeight() - 1 : $("ui-footer").outerHeight(),
+        contentCurrent = $("content").outerHeight() - $("content").height(),
+        content = screen - header - footer - contentCurrent;
+    $(".ui-content").height(content);
+
+}
+
+  // Add a marker and trigger recalculation of the path and elevation
+  function addMarker(latlng, doQuery) {
+    if (markers.length < 10) {
+      
+      var marker = new google.maps.Marker({
+        position: latlng,
+        map: map,
+        draggable: true
+      })
+      
+      google.maps.event.addListener(marker, 'dragend', function(e) {
+        updateElevation();
+      });
+      
+      markers.push(marker);
+      
+      if (doQuery) {
+        updateElevation();
+      }
+      
+      if (markers.length == 10) {
+        document.getElementById('address').disabled = true;
+      }
+    } else {
+      alert("No more than 10 points can be added");
+    }
+  }
+  
+  // Trigger the elevation query for point to point
+  // or submit a directions request for the path between points
+  function updateElevation() {
+    if (markers.length > 1) {
+      var travelMode = document.getElementById("mode").value;
+      if (travelMode != 'direct') {
+        calcRoute(travelMode);
+      } else {
+        var latlngs = [];
+        for (var i in markers) {
+          latlngs.push(markers[i].getPosition())
+        }
+        elevationService.getElevationAlongPath({
+          path: latlngs,
+          samples: 256
+        }, plotElevation);
+      }
+    }
+  }
+  
+function calcRoute(mode)
+{
+	// Create a new chart in the elevation_chart DIV.
+        chart = new google.visualization.AreaChart(document.getElementById('elevation_chart'));
+ 
+    var start = $("#routeStart").val(); // 	$( '#routeStart' ).val( address );
+    var end = $("#routeEnd").val();
+	
+	var waypoints = [];
+	var bounds = new google.maps.LatLngBounds();
     
-    <link rel="stylesheet" href="css/app.css">
-    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
-    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
-    <!--
-      <link rel="stylesheet" href="//cdn.leafletjs.com/leaflet-0.7.3/leaflet.css">
-    <link rel="stylesheet" href="//api.tiles.mapbox.com/mapbox.js/plugins/leaflet-markercluster/v0.4.0/MarkerCluster.css">
-    <link rel="stylesheet" href="//api.tiles.mapbox.com/mapbox.js/plugins/leaflet-markercluster/v0.4.0/MarkerCluster.Default.css">
-    <link rel="stylesheet" href="//api.tiles.mapbox.com/mapbox.js/plugins/leaflet-locatecontrol/v0.24.0/L.Control.Locate.css">
-    <link rel="stylesheet" href="assets/leaflet-groupedlayercontrol/leaflet.groupedlayercontrol.css">
-    -->
+	// compose a array with options for the directions/route request
+    var request = {
+        origin: start,
+        destination: end,
+		waypoints: waypoints,
+        unitSystem: google.maps.UnitSystem.IMPERIAL,
+        travelMode: google.maps.DirectionsTravelMode[mode],
+        avoidHighways: true
+        };
+		
+    // get the travelmode, startpoint and via point from the form
+        mode = travelMode;
 
-    <link rel="apple-touch-icon" sizes="76x76" href="assets/img/favicon-76.png">
-    <link rel="apple-touch-icon" sizes="120x120" href="assets/img/favicon-120.png">
-    <link rel="apple-touch-icon" sizes="152x152" href="assets/img/favicon-152.png">
-    <link rel="icon" sizes="196x196" href="assets/img/favicon-196.png">
-    <link rel="icon" type="image/x-icon" href="assets/img/favicon.ico">
-  </head>
+    switch (mode) {
+        case "bicycling":
+            request.travelMode = google.maps.DirectionsTravelMode.BICYCLING;
+            break;
+            //case "driving":
+            //request.travelMode = google.maps.DirectionsTravelMode.DRIVING;
+            //break;
+            //case "transit":
+            //request.travelMode = google.maps.DirectionsTravelMode.TRANSIT;
+            //break;
+        case "walking":
+            request.travelMode = google.maps.DirectionsTravelMode.WALKING;
+            break;
+    }
+		
+	// call elevation service API
+	//elevationService = new google.maps.ElevationService();	
+    // call the directions API
+    directionsService.route(request, function (response, status)
+    {
+        if (status == google.maps.DirectionsStatus.OK) {
+            // directions returned by the API, clear the directions panel before adding new directions
+            $('#directionsPanel').empty();
+            // display the direction details in the container
+            directionsDisplay.setDirections(response);
+			var startPt = new google.maps.LatLng(response.routes[0].legs[0].start_location.A, response.routes[0].legs[0].start_location.F);
+			var endPt = new google.maps.LatLng(response.routes[0].legs[0].end_location.A, response.routes[0].legs[0].end_location.F);
+			var path = [startPt, endPt];
+			// Create a PathElevationRequest object using this array.
+			// Ask for 256 samples along that path.
+			var pathRequest = {
+				'path': path,
+				'samples': 100
+			}
+			path.forEach(function (element, index) { bounds.extend(element) })
+			map.fitBounds(bounds);
+			elevator.getElevationAlongPath({
+			  path: response.routes[0].overview_path,
+			  samples: SAMPLES
+			}, plotElevation);
 
-  <body>
-    <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
-      <div class="container-fluid">
-        <div class="navbar-header">
-          <div class="navbar-icon-container">
-            <a href="#" class="navbar-icon pull-right visible-xs" id="nav-btn"><i class="fa fa-bars fa-lg white"></i></a>
-            <a href="#" class="navbar-icon pull-right visible-xs" id="sidebar-toggle-btn"><i class="fa fa-search fa-lg white"></i></a>
-          </div>
-          <a class="navbar-brand" href="#">Bike Leawood!</a>
-        </div>
-        <div class="navbar-collapse collapse">
-          <form class="navbar-form navbar-right" role="search">
-            <div class="form-group has-feedback">
-                <input id="searchbox" type="text" placeholder="Search" class="form-control">
-                <span id="searchicon" class="fa fa-search form-control-feedback"></span>
-            </div>
-          </form>
-          <ul class="nav navbar-nav">
-            <li><a href="#" data-toggle="collapse" data-target=".navbar-collapse.in" id="about-btn"><i class="fa fa-question-circle white"></i>&nbsp;&nbsp;About</a></li>
-            <li class="dropdown">
-              <a id="toolsDrop" href="#" role="button" class="dropdown-toggle" data-toggle="dropdown"><i class="fa fa-globe white"></i>&nbsp;&nbsp;Tools <b class="caret"></b></a>
-              <ul class="dropdown-menu">
-                  <li><a href="#" data-toggle="collapse" data-target=".navbar-collapse.in" id="directions-btn"><i class="fa fa-map-marker"></i>&nbsp;&nbsp;Directions</a></li>
-                  <li><a href="#" data-toggle="collapse" data-target=".navbar-collapse.in" id="full-extent-btn"><i class="fa fa-arrows-alt"></i>&nbsp;&nbsp;Zoom To Full Extent</a></li>
-                <li><a href="#" data-toggle="collapse" data-target=".navbar-collapse.in" id="legend-btn"><i class="fa fa-picture-o"></i>&nbsp;&nbsp;Show Legend</a></li>
-                <li class="divider hidden-xs"></li>
-                <li><a href="#" data-toggle="collapse" data-target=".navbar-collapse.in" id="login-btn"><i class="fa fa-user"></i>&nbsp;&nbsp;Login</a></li>
-              </ul>
-            </li>
-            <li class="dropdown">
-                <a class="dropdown-toggle" id="weatherDrop" href="#" role="button" data-toggle="dropdown"><i class="fa fa-cloud-download white"></i>&nbsp;&nbsp;Weather -  <b class="caret"></b></a>
-                <ul class="dropdown-menu">
-                    <!--
-                  <li><a href="data/boroughs.geojson" download="boroughs.geojson" target="_blank" data-toggle="collapse" data-target=".navbar-collapse.in"><i class="fa fa-download"></i>&nbsp;&nbsp;Boroughs</a></li>
-                  <li><a href="data/subways.geojson" download="subways.geojson" target="_blank" data-toggle="collapse" data-target=".navbar-collapse.in"><i class="fa fa-download"></i>&nbsp;&nbsp;Subway Lines</a></li>
-                  <li><a href="data/DOITT_THEATER_01_13SEPT2010.geojson" download="theaters.geojson" target="_blank" data-toggle="collapse" data-target=".navbar-collapse.in"><i class="fa fa-download"></i>&nbsp;&nbsp;Theaters</a></li>
-                  <li><a href="data/DOITT_MUSEUM_01_13SEPT2010.geojson" download="museums.geojson" target="_blank" data-toggle="collapse" data-target=".navbar-collapse.in"><i class="fa fa-download"></i>&nbsp;&nbsp;Museums</a></li>
-                    -->
-                </ul>
-            </li>
-            <li class="hidden-xs"><a href="#" data-toggle="collapse" data-target=".navbar-collapse.in" id="list-btn"><i class="fa fa-list white"></i>&nbsp;&nbsp;POI List</a></li>
-          </ul>
-        </div><!--/.navbar-collapse -->
-      </div>
-    </div>
+			// Initiate the path request.
+			//elevator.getElevationAlongPath(pathRequest, plotElevation);
+        } else {
+            // alert an error message when the route could nog be calculated.
+            if (status == 'ZERO_RESULTS') {
+                alert('No route could be found between the origin and destination.');
+            } else if (status == 'UNKNOWN_ERROR') {
+                alert('A directions request could not be processed due to a server error. The request may succeed if you try again.');
+            } else if (status == 'REQUEST_DENIED') {
+                alert('This webpage is not allowed to use the directions service.');
+            } else if (status == 'OVER_QUERY_LIMIT') {
+                alert('The webpage has gone over the requests limit in too short a period of time.');
+            } else if (status == 'NOT_FOUND') {
+                alert('At least one of the origin, destination, or waypoints could not be geocoded.');
+            } else if (status == 'INVALID_REQUEST') {
+                alert('The DirectionsRequest provided was invalid.');
+            } else {
+                alert("There was an unknown error in your request. Requeststatus: nn" + status);
+            }
+        }
+    });
+}
+    // Takes an array of ElevationResult objects, draws the path on the map
+    // and plots the elevation profile on a Visualization API ColumnChart.
+    function plotElevation(results, status)
+    {
+        if (status != google.maps.ElevationStatus.OK) {
+            return;
+        }
+		distance = 0;
+        var elevations = results;
 
-    <div id="container">
-      <div id="sidebar">
-        <div class="sidebar-wrapper">
-          <div class="panel panel-default" id="features">
-            <div class="panel-heading">
-              <h3 class="panel-title">Points of Interest
-              <button type="button" class="btn btn-xs btn-default pull-right" id="sidebar-hide-btn"><i class="fa fa-chevron-left"></i></button></h3>
-            </div>
-            <div class="panel-body">
-              <div class="row">
-                <div class="col-xs-8 col-md-8">
-                  <input type="text" class="form-control search" placeholder="Filter" />
-                </div>
-                <div class="col-xs-4 col-md-4">
-                  <button type="button" class="btn btn-primary pull-right sort" data-sort="feature-name" id="sort-btn"><i class="fa fa-sort"></i>&nbsp;&nbsp;Sort</button>
-                </div>
-              </div>
-            </div>
-            <div class="sidebar-table">
-              <table class="table table-hover" id="feature-list">
-                <thead class="hidden">
-                  <tr>
-                    <th>Icon</th>
-                  <tr>
-                  <tr>
-                    <th>Name</th>
-                  <tr>
-                  <tr>
-                    <th>Chevron</th>
-                  <tr>
-                </thead>
-                <tbody class="list"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div id="map"></div>
-    </div>
-    <div id="loading">
-      <div class="loading-indicator">
-        <div class="progress progress-striped active">
-          <div class="progress-bar progress-bar-info progress-bar-full"></div>
-        </div>
-      </div>
-    </div>
+        // Extract the elevation samples from the returned results
+        // and store them in an array of LatLngs.
+        
+        var elevationPath = [];
+        for (var i = 0; i < results.length; i++) {
+            elevationPath.push(elevations[i].location);
+        }
+		
+		if (polyline) {
+			  polyline.setMap(null);
+			}
+			
+		polyline = new google.maps.Polyline({
+		  path: elevationPath,
+		  strokeColor: "#000000",
+		  map: map});
 
-    <div class="modal fade" id="aboutModal" tabindex="-1" role="dialog">
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-          <div class="modal-header">
-            <button class="close" type="button" data-dismiss="modal" aria-hidden="true">&times;</button>
-            <h4 class="modal-title">Welcome to the BootGMap template!</h4>
-          </div>
-          <div class="modal-body">
-            <ul class="nav nav-tabs" id="aboutTabs">
-              <li class="active"><a href="#about" data-toggle="tab"><i class="fa fa-question-circle"></i>&nbsp;About the project</a></li>
-              <li><a href="#contact" data-toggle="tab"><i class="fa fa-envelope"></i>&nbsp;Contact us</a></li>
-              <li><a href="#disclaimer" data-toggle="tab"><i class="fa fa-exclamation-circle"></i>&nbsp;Disclaimer</a></li>
-              <li class="dropdown">
-                <a href="#" class="dropdown-toggle" data-toggle="dropdown"><i class="fa fa-globe"></i>&nbsp;Metadata <b class="caret"></b></a>
-                <ul class="dropdown-menu">
-                  <!--
-                      <li><a href="#boroughs-tab" data-toggle="tab">Boroughs</a></li>
-                  <li><a href="#subway-lines-tab" data-toggle="tab">Subway Lines</a></li>
-                  <li><a href="#theaters-tab" data-toggle="tab">Theaters</a></li>
-                  <li><a href="#museums-tab" data-toggle="tab">Museums</a></li>
-                  -->
-                </ul>
-              </li>
-            </ul>
-            <div class="tab-content" id="aboutTabsContent">
-              <div class="tab-pane fade active in" id="about">
-                <p>A simple, responsive template for building web mapping applications with <a href="http://getbootstrap.com/">Bootstrap 3</a>, <a href="http://leafletjs.com/" target="_blank">Leaflet</a>, and <a href="http://twitter.github.io/typeahead.js/" target="_blank">typeahead.js</a>. Open source, MIT licensed, and available on <a href="https://github.com/bmcbride/bootleaf" target="_blank">GitHub</a>.</p>
-                <div class="panel panel-primary">
-                  <div class="panel-heading">Features</div>
-                  <ul class="list-group">
-                    <li class="list-group-item">Fullscreen mobile-friendly map template with responsive navbar and modal placeholders</li>
-                    <li class="list-group-item">jQuery loading of external GeoJSON files</li>
-                    <li class="list-group-item">Logical multiple layer marker clustering via the <a href="https://github.com/Leaflet/Leaflet.markercluster" target="_blank">leaflet marker cluster plugin</a></li>
-                    <li class="list-group-item">Elegant client-side multi-layer feature search with autocomplete using <a href="http://twitter.github.io/typeahead.js/" target="_blank">typeahead.js</a></li>
-                    <li class="list-group-item">Responsive sidebar feature list synced with map bounds, which includes sorting and filtering via <a href="http://listjs.com/" target="_blank">list.js</a></li>
-                    <li class="list-group-item">Marker icons included in grouped layer control via the <a href="https://github.com/ismyrnow/Leaflet.groupedlayercontrol" target="_blank">grouped layer control plugin</a></li>
-                  </ul>
-                </div>
-              </div>
-              <div id="disclaimer" class="tab-pane fade text-danger">
-                <p>The data provided on this site is for informational and planning purposes only.</p>
-                <p>Absolutely no accuracy or completeness guarantee is implied or intended. All information on this map is subject to such variations and corrections as might result from a complete title search and/or accurate field survey.</p>
-              </div>
-              <div class="tab-pane fade" id="contact">
-                <form id="contact-form">
-                  <div class="well well-sm">
-                    <div class="row">
-                      <div class="col-md-4">
-                        <div class="form-group">
-                          <label for="first-name">First Name:</label>
-                          <input type="text" class="form-control" id="first-name">
-                        </div>
-                        <div class="form-group">
-                          <label for="last-name">Last Name:</label>
-                          <input type="text" class="form-control" id="last-email">
-                        </div>
-                        <div class="form-group">
-                          <label for="email">Email:</label>
-                          <input type="text" class="form-control" id="email">
-                        </div>
-                      </div>
-                      <div class="col-md-8">
-                        <label for="message">Message:</label>
-                        <textarea class="form-control" rows="8" id="message"></textarea>
-                      </div>
-                      <div class="col-md-12">
-                        <p>
-                          <button type="submit" class="btn btn-primary pull-right" data-dismiss="modal">Submit</button>
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-          </div>
-        </div><!-- /.modal-content -->
-      </div><!-- /.modal-dialog -->
-    </div><!-- /.modal -->
+        // Extract the data from which to populate the chart.
+        // Because the samples are equidistant, the 'Sample'
+        // column here does double duty as distance along the
+        // X axis.
+        data = new google.visualization.DataTable();
+        data.addColumn('string', 'Sample');
+        data.addColumn('number', 'Elevation');
+		data.addColumn({'type': 'string', 'role': 'tooltip'});
+		//data.addColumn({type:'string', role:'annotation'});
 
-      <div class="modal fade" id="directionsModal" tabindex="-1" role="dialog">
-          <div class="modal-dialog">
-              <div class="modal-content">
-                  <div class="modal-header">
-                      <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-                      <h4 class="modal-title">Map a Bike Route</h4>
-                  </div>
-                  <div class="modal-body">
-                      <form action="#" id="routeForm">
-                          <span>
-                              <label>
-                                  Start: <input type="text" id="routeStart" value="13523 Mission Rd, Leawood, KS" /><br />
-                                  <a href="#" class="autoLink">Use current location: <span>not found</span></a>
-                              </label><br />
-                              <label>
-                                  End: <input type="text" id="routeEnd" value="Olathe, KS" />
-                              </label><br />
-                              <input type="submit" value="Go" />
-                          </span>
-                      </form>
-                      <div id="directionsPanel" data-role="collapsible" data-mini="true" data-theme="c">
-                          Enter a starting point and click "Go".
-                      </div>
-                  </div>
-              </div><!-- /.modal-content -->
-          </div><!-- /.modal-dialog -->
-      </div><!-- /.modal -->
+		for (var i = 0; i < results.length - 1; i++) {
+			// Compute distance in meters
+			distances[i] = google.maps.geometry.spherical.computeDistanceBetween (elevations[i].location, elevations[i+1].location);
+			// Convert meters to miles
+		    var tempDistance = (parseFloat(distance) + distances[i]).toFixed(2); //parseFloat(n).toFixed(3)
+			// Convert meters to miles
+			distance = parseFloat(tempDistance * 0.000621371).toFixed(2);
+			//distance = distance + distances[i];
+			//distance = Math.round((distance*10)/10);
+			elevation = Math.round((elevations[i].elevation*10)/10);
+			data.addRow(['', Math.round((elevations[i].elevation*10)/10),tooltip(distance, elevation)]);
+			distance = tempDistance;
+		}
 
-    <div class="modal fade" id="legendModal" tabindex="-1" role="dialog">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-            <h4 class="modal-title">Map Legend</h4>
-          </div>
-          <div class="modal-body">
-            <p>Map Legend goes here...</p>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-          </div>
-        </div><!-- /.modal-content -->
-      </div><!-- /.modal-dialog -->
-    </div><!-- /.modal -->
+        // Draw the chart using the data within its DIV.
+        document.getElementById('elevation_chart').style.display = 'block';
+        chart.draw(data, {
+            width: 300,
+            height: 170,
+            legend: 'none',
+            titleY: 'Elevation (ft)',
+			hAxis: {title: 'Distance (mi)', showTextEvery: 20, maxAlternation: 100, slantedText: 'false'},
+			//backgroundColor: '#f2f2f2',
+			animation: {duration: 200, easing: 'linear'},
+			//axisTitlesPosition: "in",
+			bar: {groupWidth: '100%'},
+			focusBorderColor: '#00ff00'
+        });
+		
+		google.visualization.events.addListener(chart, 'onmouseover', function(e) {
+		  if (mousemarker == null) {
+			mousemarker = new google.maps.Marker({
+			  position: elevations[e.row].location,
+			  map: map,
+			  icon: "http://maps.google.com/mapfiles/ms/icons/yellow-dot.png"
+			});
+		  } else {
+			mousemarker.setPosition(elevations[e.row].location);
+		  }
+		});
+		
+		google.maps.event.addListener(marker, 'dragstart', function() {
+		updateElevation();
+		});
+		
+		google.maps.event.addListener(marker, 'dragend', function(e) {
+        updateElevation();
+      });
 
-    <div class="modal fade" id="loginModal" tabindex="-1" role="dialog">
-      <div class="modal-dialog modal-sm">
-        <div class="modal-content">
-          <div class="modal-header">
-            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-            <h4 class="modal-title">Login</h4>
-          </div>
-          <div class="modal-body">
-            <form id="contact-form">
-              <fieldset>
-                <div class="form-group">
-                  <label for="name">Username:</label>
-                  <input type="text" class="form-control" id="username">
-                </div>
-                <div class="form-group">
-                  <label for="email">Password:</label>
-                  <input type="password" class="form-control" id="password">
-                </div>
-              </fieldset>
-            </form>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn btn-primary" data-dismiss="modal">Login</button>
-          </div>
-        </div><!-- /.modal-content -->
-      </div><!-- /.modal-dialog -->
-    </div><!-- /.modal -->
+     //loaded fully
+    $("#loading").hide();
+    }
 
-    <div class="modal fade" id="featureModal" tabindex="-1" role="dialog">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <button class="close" type="button" data-dismiss="modal" aria-hidden="true">&times;</button>
-            <h4 class="modal-title text-primary" id="feature-title"></h4>
-          </div>
-          <div class="modal-body" id="feature-info"></div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-          </div>
-        </div><!-- /.modal-content -->
-      </div><!-- /.modal-dialog -->
-    </div><!-- /.modal -->
+    // function to get weather for an address
+    function getWeather(lat, lng)
+    {
+        if (lat != '' && lng != '') {
+            $("#weather").val("Retrieving weather...");										// write temporary response while we get the weather
+            $.getJSON("http://api.openweathermap.org/data/2.5/weather?lat=" + lat + "&lon=" + lng + "&units=imperial", function (data)
+            {	// add '&units=imperial' to get U.S. measurements
+                var currWeather = new Array();								// create array to hold our weather response data
+                currWeather['currTemp'] = Math.round(data.main.temp);				// current temperature
+                currWeather['highTemp'] = Math.round(data.main.temp_max);			// today's high temp
+                currWeather['lowTemp'] = Math.round(data.main.temp_min);			// today's low temp
+                currWeather['humidity'] = Math.round(data.main.humidity);			// humidity (in percent)
+                currWeather['pressure'] = data.main.pressure * 0.02961339710085;	// barometric pressure (converting hPa to inches)
+                currWeather['pressure'] = currWeather['pressure'].toFixed(2);		// barometric pressure (rounded to 2 decimals)
 
-    <div class="modal fade" id="attributionModal" tabindex="-1" role="dialog">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <button class="close" type="button" data-dismiss="modal" aria-hidden="true">&times;</button>
-            <h4 class="modal-title">
-              Developed by <a href='http://bryanmcbride.com'>bryanmcbride.com</a>
-            </h4>
-          </div>
-          <div class="modal-body">
-            <div id="attribution"></div>
-          </div>
-        </div><!-- /.modal-content -->
-      </div><!-- /.modal-dialog -->
-    </div><!-- /.modal -->
+                currWeather['description'] = data.weather[0].description;				// short text description (ie. rain, sunny, etc.)
+                currWeather['icon'] = "http://openweathermap.org/img/w/" + data.weather[0].icon + ".png";	// 50x50 pixel png icon
+                currWeather['cloudiness'] = data.clouds.all;							// cloud cover (in percent)
+                currWeather['windSpeed'] = Math.round(data.wind.speed);				// wind speed
 
-    <script src="//code.jquery.com/jquery-1.11.1.min.js"></script>
-    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/typeahead.js/0.10.5/typeahead.bundle.min.js"></script>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/handlebars.js/3.0.0/handlebars.min.js"></script>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/list.js/1.1.1/list.min.js"></script>
-    <script src="http://www.google.com/jsapi" type="text/javascript"></script>
-    <script src="http://maps.google.com/maps/api/js?sensor=false&libraries=places" type="text/javascript"></script>
-    <script src="assets/js/jquery.share.js"></script>
-    <script src="js/jquery.share.js"></script>
-    <script src="js/mainapp.js"></script>
+                currWeather['windDegree'] = data.wind.deg;							// wind direction (in degrees)
+                currWeather['windCompass'] = Math.round((currWeather['windDegree'] - 11.25) / 22.5);	// wind direction (compass value)
 
-  </body>
-</html>
+                // array of direction (compass) names
+                var windNames = new Array("North", "North Northeast", "Northeast", "East Northeast", "East", "East Southeast", "Southeast", "South Southeast", "South", "South Southwest", "Southwest", "West Southwest", "West", "West Northwest", "Northwest", "North Northwest");
+                // array of abbreviated (compass) names
+                var windShortNames = new Array("N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW");
+                currWeather['windDirection'] = windNames[currWeather['windCompass']];	// convert degrees and find wind direction name
+
+
+                var response = "Current Weather: " + currWeather['currTemp'] + "\xB0 and " + currWeather['description'];
+                var spokenResponse = "It is currently " + currWeather['currTemp'] + " degrees and " + currWeather['description'];
+
+                if (currWeather['windSpeed'] > 0) {											// if there's wind, add a wind description to the response
+                    response = response + " with winds out of the " + windNames[currWeather['windCompass']] + " at " + currWeather['windSpeed'];
+                    spokenResponse = spokenResponse + " with winds out of the " + windNames[currWeather['windCompass']] + " at " + currWeather['windSpeed'];
+                    if (currWeather['windSpeed'] == 1) {
+                        response += " mile per hour";
+                        spokenResponse += " mile per hour";
+                    } else {
+                        response += " miles per hour";
+                        spokenResponse += " miles per hour";
+                    }
+                }
+
+                console.log(data);												// log weather data for reference (json format) 
+                $("#weatherLat").val(Math.floor(lat * 1000 + 0.5) / 1000);      // write current Latitude to modal, round within 0.001
+                $("#weatherLng").val(Math.floor(lng * 1000 + 0.5) / 1000);      // write current Longitude to modal, round within 0.001
+                $("#weather").val(response);									// write current weather to textarea
+                speakText(spokenResponse);
+            });
+        } else {
+            return false;														// respond w/error if no address entered
+        }
+    }
+
+    // function to speak a response
+    function speakText(response)
+    {
+
+        // setup synthesis
+        var msg = new SpeechSynthesisUtterance();
+        var voices = window.speechSynthesis.getVoices();
+        msg.voice = voices[2];					// Note: some voices don't support altering params
+        msg.voiceURI = 'native';
+        msg.volume = 1;							// 0 to 1
+        msg.rate = 1;							// 0.1 to 10
+        msg.pitch = 2;							// 0 to 2
+        msg.text = response;
+        msg.lang = 'en-US';
+
+        speechSynthesis.speak(msg);
+    }
+  
+  // Clear all overlays, reset the array of points, and hide the chart
+  function reset() {
+    if (polyline) {
+      polyline.setMap(null);
+    }
+    
+    for (var i in markers) {
+      markers[i].setMap(null);
+    }
+    
+    markers = [];
+    
+    document.getElementById('elevation_chart').style.display = 'none';
+  }
+
+ 
+$(document).bind('touchmove', function (e)
+	{
+		e.preventDefault();
+	});
+
+$(document).bind('pageinit', function ()
+	{
+		$.mobile.defaultPageTransition = 'none';
+	});
+
+//	    networks: ['facebook', 'pinterest', 'googleplus', 'twitter', 'linkedin', 'tumblr', 'in1', 'email', 'stumbleupon', 'digg']
+//$('#mydiv').share({
+//    networks: ['facebook', 'pinterest', 'googleplus', 'twitter', 'tumblr', 'email']
+//});
+
+$("#routeForm").submit(function (event)
+	{
+		// onclick, set the geocoded address to the start-point formfield
+		$('#routeStart').val(address);
+		// call the calcRoute function to start calculating the route
+		calcRoute(travelMode);
+		event.preventDefault();
+	});
+	
+function getURLParam(name) {
+  var regexS = "[\\?&]" + name + "=([^&#]*)";
+  var regex = new RegExp(regexS);
+  var results = regex.exec(window.location.href);
+  return (results === null ? "" : decodeURIComponent(results[1]));
+}
+
+function drawMap(pos)
+{
+    // set route options (draggable means you can alter/drag the route in the map)
+    var rendererOptions = { draggable: true };
+    directionsDisplay = new google.maps.DirectionsRenderer(rendererOptions);
+
+    var myOptions = {
+        zoom: 16,
+        center: pos,
+        panControl: false,
+        dragging: true,
+        mapTypeId: google.maps.MapTypeId.TERRAIN,
+        mapTypeControl: true,
+        mapTypeControlOptions: {
+            style: google.maps.MapTypeControlStyle.DROPDOWN_MENU,
+            position: google.maps.ControlPosition.TOP_RIGHT,
+            mapTypeIds: [google.maps.MapTypeId.ROADMAP, google.maps.MapTypeId.HYBRID, google.maps.MapTypeId.TERRAIN]
+        },
+        zoomControl: true,
+        zoomControlOptions: {
+            style: google.maps.ZoomControlStyle.SMALL,
+            position: google.maps.ControlPosition.RIGHT_BOTTOM
+        },
+        streetViewControl: true,
+        streetViewControlOptions: {
+            position: google.maps.ControlPosition.TOP_LEFT
+        }
+    };
+    map = new google.maps.Map(document.getElementById("map"), myOptions);
+
+    GeoMarker = new GeolocationMarker();
+    GeoMarker.setCircleOptions({ fillColor: '#808080', radius: 10});
+
+    google.maps.event.addListenerOnce(GeoMarker, 'position_changed', function ()
+    {
+        map.setCenter(this.getPosition());
+        map.fitBounds(this.getBounds());
+    });
+
+    google.maps.event.addListener(GeoMarker, 'geolocation_error', function (e)
+    {
+        alert('There was an error obtaining your position. Message: ' + e.message);
+    });
+
+    GeoMarker.setMap(map);
+
+    // bind the map to the directions
+    directionsDisplay.setMap(map);
+    // point the directions to the container for the direction details
+    directionsDisplay.setPanel(document.getElementById("directionsPanel"));
+
+    //initialize the fusion table layer
+    layer = new google.maps.FusionTablesLayer({
+        query: {
+            select: 'description',
+            from: tableid[0]
+        }, styles: [{
+            polylineOptions: {
+                strokeColor: "#A6A6A6",
+                strokeWeight: "5"
+            }
+        }, {
+            where: "description LIKE '%Bicycle%'",
+            polylineOptions: {
+                strokeColor: "#C500FF",
+                strokeWeight: "3"
+            }
+        }, {
+            where: "description like '%Crosstown%'",
+            polylineOptions: {
+                strokeColor: "#0070FF",
+                strokeWeight: "5"
+            }
+        }, {
+            where: "description like '%Neighborhood%'",
+            polylineOptions: {
+                strokeColor: "#E69800",
+                strokeWeight: "2"
+            }
+        }, {
+            where: "description like '%Principal%'",
+            polylineOptions: {
+                strokeColor: "#FA3411",
+                strokeWeight: "4"
+            }
+        }]
+    }, {
+        suppressInfoWindows: false,
+        query: "select * from " + tableid[0]
+        //    query: "select * from " + tableid[0] + " where Display = 1 OR SbdvTypeDs LIKE '" + subdivtype + "' "
+    });
+
+    //draw the fusion table layer on the google map
+    layer.setMap(map);
+
+    //var wxoverlay = new WXTiles();
+    //wxoverlay.addToMap( map );
+    //wxoverlay.addColorBar( 'big', 'horiz', 'BottomLeft' );
+    //document.getElementById( 'tSelect' ).appendChild( wxoverlay.getTSelect() );
+    //document.getElementById( 'wxSelect' ).appendChild( wxoverlay.getVSelect() );
+
+    var bikeLayer = new google.maps.BicyclingLayer();
+    bikeLayer.setMap(map);
+
+    // Create the DIV to hold the control and
+    // call the CenterControl() constructor passing
+    // in this DIV.
+    /*var centerControlDiv = document.createElement( 'div' );
+    var centerControl = new CenterControl( centerControlDiv, map );
+
+    centerControlDiv.index = 1;
+    map.controls[google.maps.ControlPosition.TOP_RIGHT].push( centerControlDiv );
+
+    var homeControlDiv = document.getElementById( 'ddControl' );
+    homeControlDiv.style.display = "block";
+    map.controls[google.maps.ControlPosition.TOP_RIGHT].push( homeControlDiv );
+    */
+
+    //return;
+    //add a click event listener to the layer
+    var id = "";
+    google.maps.event.addListener(layer, 'click', function (e) { clickRow(e) });
+
+    // Add an overlay to the map of current lat/lng
+    var marker = new google.maps.Marker({
+        position: pos,
+        map: map,
+        title: "You are here!"
+    });
+	    //loaded fully
+    $("#loading").hide();
+}
+
+// start the geolocation API
+if (navigator.geolocation) {
+    // when geolocation is available on your device, run this function
+    navigator.geolocation.getCurrentPosition(function (position)
+    {
+        lat = position.coords.latitude;
+        lng = position.coords.longitude;
+        var pos = new google.maps.LatLng(position.coords.latitude, position.coords.longitude);
+        // convert the position returned by the geolocation API to a google coordinate object
+        // then try to reverse geocode the location to return a human-readable address
+        geocoder.geocode({ 'latLng': pos }, function (results, status)
+        {
+            if (status == google.maps.GeocoderStatus.OK) {
+                // if the geolocation was recognized and an address was found
+                if (results[0]) {
+                    // add a marker to the map on the geolocated point
+                    marker = new google.maps.Marker({
+                        position: pos,
+                        map: map
+                    });
+                    // compose a string with the address parts
+                    //var address = results[0].address_components[1].long_name + ' ' + results[0].address_components[0].long_name + ', ' + results[0].address_components[3].long_name
+                    address = results[0].formatted_address;
+                    // set the located address to the link, show the link and add a click event handler
+                    $('.autoLink span').html(address).parent().show().click(function ()
+                    {
+                        // onclick, set the geocoded address to the start-point formfield
+                        $('#routeStart').val(address);
+                        // call the calcRoute function to start calculating the route
+                        calcRoute(travelMode);
+                    });
+                }
+            } else {
+                // if the address couldn't be determined, alert and error with the status message
+                alert("Geocoder failed due to: " + status);
+            }
+        });
+        // Location found, show map with these coordinates
+        drawMap(pos);
+    })
+} else {
+    // when no geolocation is available, alert this message
+    alert('Geolocation not supported or not enabled.');
+    drawMap(defaultLatLng);  // No geolocation support, show default map
+}
+
+var MY_MAPTYPE_ID = 'TERRAIN';
+var tableid = ['1XHCdMaMg2jFc_cR-_vQiKPKNg0xG8pnd2d06ULqR'];
+var directionsDisplay, address;
+var directionsService = new google.maps.DirectionsService();
+var geocoder = new google.maps.Geocoder();
+
+var featureOpts = [
+    {
+        "stylers": [
+        { "saturation": -100 },
+        { "lightness": 34 },
+        { "gamma": 0.62 }
+        ]
+    }
+];
+
+/**
+* @constructor
+* @implements {google.maps.MapType}
+*/
+function CoordMapType()
+{
+}
+
+CoordMapType.prototype.tileSize = new google.maps.Size(256, 256);
+CoordMapType.prototype.maxZoom = 19;
+
+CoordMapType.prototype.getTile = function (coord, zoom, ownerDocument)
+{
+    var div = ownerDocument.createElement('div');
+    div.innerHTML = coord;
+    div.style.width = this.tileSize.width + 'px';
+    div.style.height = this.tileSize.height + 'px';
+    div.style.fontSize = '10';
+    div.style.borderStyle = 'solid';
+    div.style.borderWidth = '1px';
+    div.style.borderColor = '#AAAAAA';
+    div.style.backgroundColor = '#E5E3DF';
+    return div;
+};
+
+CoordMapType.prototype.name = 'Tile #s';
+CoordMapType.prototype.alt = 'Tile Coordinate Map Type';
+
+//var map;
+var leawood = new google.maps.LatLng(41.850033, -87.6500523);
+var coordinateMapType = new CoordMapType();
+
+document.ontouchmove = function (e) { e.preventDefault(); }
+
+// Remove the green rollover marker when the mouse leaves the chart
+function clearMouseMarker() {
+	if (mousemarker != null) {
+	  mousemarker.setMap(null);
+	  mousemarker = null;
+	}
+}
+
+$(document).ready(function ()
+{
+
+    setDIVHeight();
+
+    $(window).resize(function ()
+    {
+        setDIVHeight();
+    });
+
+    function setDIVHeight()
+    {
+        var theDiv = $('#map-page');
+        var screen = $(window).height() //$.mobile.getScreenHeight(),
+            header = $("header").hasClass("ui-header") ? $("ui-header").outerHeight() - 1 : $("ui-header").outerHeight(),
+            footer = $("footer").hasClass("ui-footer") ? $("ui-footer").outerHeight() - 1 : $("ui-footer").outerHeight(),
+            contentCurrent = $("content").outerHeight() - $("content").height(),
+            content = screen - header - footer - contentCurrent;
+        $(".ui-content").height(content);
+
+    }
+
+    $(document).bind('touchmove', function (e)
+    {
+        e.preventDefault();
+    });
+
+    $(document).bind('pageinit', function ()
+    {
+        $.mobile.defaultPageTransition = 'none';
+    });
+
+    $("#routeForm").submit(function (event)
+    {
+        // onclick, set the geocoded address to the start-point formfield
+        $('#routeStart').val(address);
+        // call the calcRoute function to start calculating the route
+        calcRoute(travelMode);
+        event.preventDefault();
+    });
+
+    // start the geolocation API
+    if (navigator.geolocation) {
+        // when geolocation is available on your device, run this function
+        navigator.geolocation.getCurrentPosition(function (position)
+        {
+            var pos = new google.maps.LatLng(position.coords.latitude, position.coords.longitude);
+            // convert the position returned by the geolocation API to a google coordinate object
+            // then try to reverse geocode the location to return a human-readable address
+            geocoder.geocode({ 'latLng': pos }, function (results, status)
+            {
+                if (status == google.maps.GeocoderStatus.OK) {
+                    // if the geolocation was recognized and an address was found
+                    if (results[0]) {
+                        // add a marker to the map on the geolocated point
+                        marker = new google.maps.Marker({
+                            position: pos,
+                            map: map
+                        });
+                        // compose a string with the address parts
+                        //var address = results[0].address_components[1].long_name + ' ' + results[0].address_components[0].long_name + ', ' + results[0].address_components[3].long_name
+                        address = results[0].formatted_address;
+                        // set the located address to the link, show the link and add a click event handler
+                        $('.autoLink span').html(address).parent().show().click(function ()
+                        {
+                            // onclick, set the geocoded address to the start-point formfield
+                            $('#routeStart').val(address);
+                            // call the calcRoute function to start calculating the route
+                            calcRoute(travelMode);
+                        });
+                    }
+                } else {
+                    // if the address couldn't be determined, alert and error with the status message
+                    alert("Geocoder failed due to: " + status);
+                }
+            });
+            // Location found, show map with these coordinates
+            drawMap(pos);
+        })
+    } else {
+        // when no geolocation is available, alert this message
+        alert('Geolocation not supported or not enabled.');
+        drawMap(defaultLatLng);  // No geolocation support, show default map
+    }
+
+	function clickRow(e) {
+	//id = "" + parseInt(e.row.AIMSFID.value);
+	id = "Route " + parseInt( e.row.name.value );
+	//subdiv = e.row["SbdvName"].value;
+	//subdivtype = e.row["SbdvTypeDs"].value;
+	el = document.getElementById(id);
+
+	//add the subdiv record to the list if it doesn't exist, otherwise just highlight it
+	if (el) {
+	el.scrollIntoView(true);
+	el.style.backgroundColor = "#9fc5e8";
+	setTimeout("document.getElementById('" + id + "').style.backgroundColor = '#fff'", 2000);
+	}
+	//get the data table from fusion tables
+	//var queryText = encodeURIComponent( "select FID, SHAPE from 588329 WHERE Display = 1" );
+	//var queryText = encodeURIComponent("select AIMSFID, SbdvName, SHAPE from 588329 SbdvTypeDs LIKE '" + subdivtype + "' ORDER BY SbdvName");
+	//var queryText = encodeURIComponent( "select AIMSFID, SbdvName, SHAPE from 588329 WHERE Display = 1 ORDER BY SbdvName" );
+	//var query = new google.visualization.Query( 'http://www.google.com/fusiontables/gvizdata?tq=' + queryText );
+
+	//query.send( zoomTo );
+	}
+	
+    function zoomTo(response)
+    {
+        if (!response) {
+            alert('no response');
+            return;
+        }
+        if (response.isError()) {
+            alert('Error in query: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+            return;
+        }
+        FTresponse = response;
+        //for more information on the response object, see the documentation
+        //http://code.google.com/apis/visualization/documentation/reference.html#QueryResponse
+        numRows = response.getDataTable().getNumberOfRows();
+        numCols = response.getDataTable().getNumberOfColumns();
+
+        var bounds = new google.maps.LatLngBounds();
+        for (i = 0; i < numRows; i++) {
+            var point = new google.maps.LatLng(
+					parseFloat(response.getDataTable().getValue(i, 0)),
+					parseFloat(response.getDataTable().getValue(i, 1)));
+            bounds.extend(point);
+        }
+        // zoom to the bounds
+        map.fitBounds(bounds);
+    }
+
+    function notFound(msg)
+    {
+        alert('Could not find your location!')
+    }
+    function foundYou(position)
+    {
+        // convert the position returned by the geolocation API to a google coordinate object
+        var latlng = new google.maps.LatLng(position.coords.latitude, position.coords.longitude);
+        // then try to reverse geocode the location to return a human-readable address
+        geocoder.geocode({ 'latLng': latlng }, function (results, status)
+        {
+            if (status == google.maps.GeocoderStatus.OK) {
+                // if the geolocation was recognized and an address was found
+                if (results[0]) {
+                    // add a marker to the map on the geolocated point
+                    marker = new google.maps.Marker({
+                        position: latlng,
+                        map: map
+                    });
+                    // compose a string with the address parts
+                    var address = results[0].address_components[1].long_name + ' ' + results[0].address_components[0].long_name + ', ' + results[0].address_components[3].long_name
+                    // set the located address to the link, show the link and add a click event handler
+                    $('.autoLink span').html(address).parent().show().click(function ()
+                    {
+                        // onclick, set the geocoded address to the start-point formfield
+                        $('#routeStart').val(address);
+                        // call the calcRoute function to start calculating the route
+                        calcRoute(travelMode);
+                    });
+                }
+            } else {
+                // if the address couldn't be determined, alert and error with the status message
+                alert("Geocoder failed due to: " + status);
+            }
+        });
+    }
+}
+);
