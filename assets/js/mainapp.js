@@ -622,36 +622,7 @@ function drawMap(pos)
         query: {
             select: 'description',
             from: tableid[0]
-        }, styles: [{
-            polylineOptions: {
-                strokeColor: "#A6A6A6",
-                strokeWeight: "5"
-            }
-        }, {
-            where: "description LIKE '%Bicycle%'",
-            polylineOptions: {
-                strokeColor: "#C500FF",
-                strokeWeight: "3"
-            }
-        }, {
-            where: "description like '%Crosstown%'",
-            polylineOptions: {
-                strokeColor: "#0070FF",
-                strokeWeight: "5"
-            }
-        }, {
-            where: "description like '%Neighborhood%'",
-            polylineOptions: {
-                strokeColor: "#E69800",
-                strokeWeight: "2"
-            }
-        }, {
-            where: "description like '%Principal%'",
-            polylineOptions: {
-                strokeColor: "#FA3411",
-                strokeWeight: "4"
-            }
-        }]
+        }
     }, {
         suppressInfoWindows: false,
         query: "select * from " + tableid[0]
@@ -746,7 +717,8 @@ if (navigator.geolocation) {
 }
 
 var MY_MAPTYPE_ID = 'TERRAIN';
-var tableid = ['1XHCdMaMg2jFc_cR-_vQiKPKNg0xG8pnd2d06ULqR'];
+//var tableid = ['1XHCdMaMg2jFc_cR-_vQiKPKNg0xG8pnd2d06ULqR'];
+var tableid = ['1lM_N6mYRtPC1M0jmYo8-zCM-Npc9JFoeMPKk-HHi'];
 var directionsDisplay, address;
 var directionsService = new google.maps.DirectionsService();
 var geocoder = new google.maps.Geocoder();
