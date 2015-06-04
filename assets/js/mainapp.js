@@ -297,10 +297,10 @@ function calcRoute(mode)
             request.travelMode = google.maps.DirectionsTravelMode.BICYCLING;
             break;
             //case "driving":
-            //request.travelMode = google.maps.DirectionsTravelMode.DRIVING;
+            request.travelMode = google.maps.DirectionsTravelMode.DRIVING;
             //break;
             //case "transit":
-            //request.travelMode = google.maps.DirectionsTravelMode.TRANSIT;
+            request.travelMode = google.maps.DirectionsTravelMode.TRANSIT;
             //break;
         case "walking":
             request.travelMode = google.maps.DirectionsTravelMode.WALKING;
@@ -718,7 +718,7 @@ if (navigator.geolocation) {
 
 var MY_MAPTYPE_ID = 'TERRAIN';
 //var tableid = ['1XHCdMaMg2jFc_cR-_vQiKPKNg0xG8pnd2d06ULqR'];
-var tableid = ['1lM_N6mYRtPC1M0jmYo8-zCM-Npc9JFoeMPKk-HHi'];
+var tableid = ['12Q-kOL7tSssLOu6uu142OdOyYgCUfE9_HgszYJRt']; // KC Google Transit Public Data Feed Fusion Table
 var directionsDisplay, address;
 var directionsService = new google.maps.DirectionsService();
 var geocoder = new google.maps.Geocoder();
