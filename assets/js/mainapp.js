@@ -545,11 +545,6 @@ $(document).bind('pageinit', function ()
 		$.mobile.defaultPageTransition = 'none';
 	});
 
-//	    networks: ['facebook', 'pinterest', 'googleplus', 'twitter', 'linkedin', 'tumblr', 'in1', 'email', 'stumbleupon', 'digg']
-//$('#mydiv').share({
-//    networks: ['facebook', 'pinterest', 'googleplus', 'twitter', 'tumblr', 'email']
-//});
-
 $("#routeForm").submit(function (event)
 	{
 		// onclick, set the geocoded address to the start-point formfield
